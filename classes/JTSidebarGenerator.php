@@ -161,7 +161,7 @@ class JTSidebarGenerator {
 
 		$widgets = $this->getReplaceableWidgets();
 
-		if (!$widgets) {
+		if (!$widgets && $widgetId !== 'none') {
 			$widgets = [
 				[
 					'id' => $widgetId,
@@ -185,6 +185,9 @@ class JTSidebarGenerator {
 				break;
 			}
 		}
+
+		if ($widgetId === 'none')
+			return;
 
 		update_option(JTSidebarGeneratorConstants::WIDGET_REPLACEABLE_STORE_ID, json_encode($widgets));
 	}

@@ -1,5 +1,9 @@
 <?php
 
+// Do not allow direct access to this file.
+if(!function_exists('add_action'))
+	die();
+
 class JTSidebarGeneratorDebugHelper {
 
 	public static function debug($data = array(), $title = ''){

@@ -1,5 +1,9 @@
 <?php
 
+// Do not allow direct access to this file.
+if(!function_exists('add_action'))
+	die();
+
 class JTSidebarGeneratorPageSettingsHelper {
 
 	public static function renderSidebarSelect($label, $inputName, $postId, $selectedOptionCallback, $sidebars, $forReplaceable = false) {

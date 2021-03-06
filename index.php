@@ -10,6 +10,9 @@ if(!function_exists('add_action'))
 
 $pluginPath = plugin_dir_path( __FILE__ );
 
+include_once $pluginPath . '/classes/helpers/JTSidebarGeneratorDebugHelper.php';
+include_once $pluginPath . '/classes/helpers/JTSidebarGeneratorPageSettingsHelper.php';
+
 include_once $pluginPath . '/classes/JTSidebarGeneratorConstants.php';
 include_once $pluginPath . '/classes/JTSidebarGenerator.php';
 include_once $pluginPath . '/classes/JTSidebarGeneratorPageInterface.php';

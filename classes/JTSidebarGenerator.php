@@ -6,22 +6,6 @@ if(!function_exists('add_action'))
 
 class JTSidebarGenerator {
 
-	public function debug($data = array(), $title = ''){
-		if( is_array($data) ){
-			array_walk_recursive( $data, array( $this, 'debugFilter' ) );
-		}
-		if( !empty($title) ){
-			echo '<h3>'. $title .'</h3>';
-		}
-		echo '<pre>';
-		print_r($data);
-		echo '</pre>';
-	}
-
-	public function debugFilter(&$data){
-		$data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
-	}
-
 	public function getSidebars() {
 		return json_decode(get_option(JTSidebarGeneratorConstants::OPTIONS_STORE_ID));
 	}
@@ -78,8 +62,8 @@ class JTSidebarGenerator {
 		update_option(JTSidebarGeneratorConstants::OPTIONS_STORE_ID, json_encode($result));
 	}
 
-	public function getSidebarByPostId($postId) {
-		$sidebars = $this->getSidebars();
+	public function getSidebarByPostId($postId, $forReplaceable = false, $widgets = null) {
+		$sidebars = !$forReplaceable ? $this->getSidebars() : $widgets;
 
 		if (!$sidebars && empty($sidebars)) {
 			return null;
@@ -106,26 +90,7 @@ class JTSidebarGenerator {
 	public function getReplaceableByPostId($postId) {
 		$widgets = $this->getReplaceableWidgets();
 
-		if (!$widgets && empty($widgets)) {
-			return null;
-		}
-
-		$id = null;
-
-		foreach($widgets as $widget) {
-			foreach($widget->pages as $page) {
-				if ((string)$page === (string)$postId) {
-					$id = $widget->id;
-					break;
-				}
-			}
-
-			if (!is_null($id)) {
-				break;
-			}
-		}
-
-		return $id;
+		return $this->getSidebarByPostId($postId, true, $widgets);
 	}
 
 	private function removePageFromSidebar($sidebar, $postId) {
@@ -139,6 +104,21 @@ class JTSidebarGenerator {
 		$sidebar->pages = $pages;
 
 		return $sidebar;
+	}
+
+	private function isReplaceableAlreadyStored($id) {
+		$widgets = $this->getReplaceableWidgets();
+
+		$stored = false;
+
+		foreach($widgets as $widget) {
+			if ((string)$widget->id === (string)$id) {
+				$stored = true;
+				break;
+			}
+		}
+
+		return $stored;
 	}
 
 	public function addConditionToSidebar($sidebarId, $widgetId, $postId) {
@@ -189,27 +169,26 @@ class JTSidebarGenerator {
 		if ($widgetId === 'none')
 			return;
 
+		if (!$this->isReplaceableAlreadyStored($widgetId)) {
+			$widgets[] = [
+				'id' => $widgetId,
+				'pages' => [$postId]
+			];
+		}
+
 		update_option(JTSidebarGeneratorConstants::WIDGET_REPLACEABLE_STORE_ID, json_encode($widgets));
 	}
 
-	public function getSelectedOption($sidebarId, $postId) {
-		$selectedValue = $this->getSidebarByPostId($postId);
+	public function getSelectedOption($sidebarId, $postId, $forReplaceable = false) {
+		$selectedValue = !$forReplaceable
+			? $this->getSidebarByPostId($postId)
+			: $this->getReplaceableByPostId($postId);
 
 		if ($sidebarId === 'none') {
 			return is_null($selectedValue) ? 'selected' : '';
 		}
 
 		return $selectedValue === $sidebarId ? 'selected' : '';
-	}
-
-	public function getSelectedOptionForReplaceable($widgetId, $postId) {
-		$selectedValue = $this->getReplaceableByPostId($postId);
-
-		if ($widgetId === 'none') {
-			return is_null($selectedValue) ? 'selected' : '';
-		}
-
-		return $selectedValue === $widgetId ? 'selected' : '';
 	}
 
 	public function getSelectInputName() {
@@ -255,33 +234,22 @@ class JTSidebarGenerator {
 		if ((!$sidebars && empty($sidebars)) || $post->post_type !== 'page')
 			return;
 
-		$html  = '<p><label><strong>Sidebar</strong></label></p>';
-		$html .= '<select name="' . $this->getSelectInputName() . '" id="jt-sidebar-select">';
-		$html .= '<option value="none" ' . $this->getSelectedOption('none', $post->ID) . '>'
-		         . __('None', JTSidebarGeneratorConstants::PLUGIN_NAME) . '</option>';
+		JTSidebarGeneratorPageSettingsHelper::renderSidebarSelect(
+			__('Sidebar', JTSidebarGeneratorConstants::PLUGIN_NAME),
+			$this->getSelectInputName(),
+			$post->ID,
+			[$this, 'getSelectedOption'],
+			$sidebars
+		);
 
-		foreach($sidebars as $sidebar) {
-			$html .= '<option value="' . $sidebar->id . '" ' . $this->getSelectedOption($sidebar->id, $post->ID)
-			         . '>' . $sidebar->name . '</option>';
-		}
-
-		$html .= '</select>';
-
-		$html .= '<p><label><strong>Replacable Sidebar Widget</strong></label></p>';
-		$html .= '<select name="' . $this->getReplaceableInputName() . '" id="jt-sidebar-replaceable-select">';
-		$html .= '<option value="none" ' . $this->getSelectedOptionForReplaceable('none', $post->ID) . '>'
-		         . __('None', JTSidebarGeneratorConstants::PLUGIN_NAME) . '</option>';
-
-		$widgets = $this->getSidebarsWidgetsWithoutGeneratedOnes($sidebars);
-
-		foreach($widgets as $widget) {
-			$html .= '<option value="' . $widget['id'] . '" ' . $this->getSelectedOptionForReplaceable($widget['id'], $post->ID)
-			         . '>' . $widget['name'] . '</option>';
-		}
-
-		$html .= '</select>';
-
-		echo $html;
+		JTSidebarGeneratorPageSettingsHelper::renderSidebarSelect(
+			__('Replacable Sidebar Widget', JTSidebarGeneratorConstants::PLUGIN_NAME),
+			$this->getReplaceableInputName(),
+			$post->ID,
+			[$this, 'getSelectedOption'],
+			$this->getSidebarsWidgetsWithoutGeneratedOnes($sidebars),
+			true
+		);
 	}
 
 	public function handlePageSavingRequest($postId, $request) {

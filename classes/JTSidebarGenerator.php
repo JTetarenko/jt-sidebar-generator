@@ -286,6 +286,22 @@ class JTSidebarGenerator {
 		}
 	}
 
+	public function applySidebarsConditions($sidebars) {
+		if (is_page()) {
+			$pageId = get_the_ID();
+			$activeSidebar = $this->getSidebarByPostId($pageId);
+			$activeWidget = $this->getReplaceableByPostId($pageId);
+
+			// None of generated sidebars is applyable
+			if (is_null($activeSidebar) || is_null($activeWidget))
+				return $sidebars;
+
+			$sidebars[$activeWidget] = $sidebars[$activeSidebar];
+		}
+
+		return $sidebars;
+	}
+
 	public function init() {
 		add_action('widgets_init', [$this, 'registerGeneratedSidebars']);
 
@@ -297,20 +313,6 @@ class JTSidebarGenerator {
 			$this->handlePageSavingRequest($postId, $_POST);
 		}, 10, 3);
 
-		add_filter('sidebars_widgets', function($sidebars) {
-			if (is_page()) {
-				$pageId = get_the_ID();
-				$activeSidebar = $this->getSidebarByPostId($pageId);
-				$activeWidget = $this->getReplaceableByPostId($pageId);
-
-				// None of generated sidebars is applyable
-				if (is_null($activeSidebar) || is_null($activeWidget))
-					return $sidebars;
-
-				$sidebars[$activeWidget] = $sidebars[$activeSidebar];
-			}
-
-			return $sidebars;
-		});
+		add_filter('sidebars_widgets', [$this, 'applySidebarsConditions']);
 	}
 }
